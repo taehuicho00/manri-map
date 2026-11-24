@@ -192,14 +192,13 @@ a { color: inherit; }
 .plabels .metro { font-size: 0.92em; }
 .plabels .mn { font-family: var(--f-body); font-size: 0.78em; fill: #B79A90; }
 .subway path { fill: none; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
-.subway .case { stroke: var(--land); stroke-width: 4px; }
-.subway .ln { stroke-width: 2px; }
-.zin .subway .case { stroke-width: 5.5px; }
-.zin .subway .ln { stroke-width: 3px; }
-.stations { opacity: 0.8; }
+.subway .case { display: none; }
+.subway .ln { stroke-width: 1.5px; }
+.zin .subway .ln { stroke-width: 2.2px; }
+.stations { opacity: 0.6; }
 .stations circle { fill: #FFFFFF; stroke-width: calc(var(--sw, 2.5px) * 0.55); pointer-events: none; }
-.plabels .stn { font-family: var(--f-body); font-size: 0.8em; fill: #A8928A; paint-order: stroke; stroke: var(--land); stroke-width: calc(var(--sw, 2.5px) * 1.1); stroke-linejoin: round; }
-.plabels .stn.tr { fill: var(--muted); font-weight: 500; }
+.plabels .stn { font-family: var(--f-body); font-size: 0.78em; fill: #B8A59D; paint-order: stroke; stroke: var(--land); stroke-width: calc(var(--sw, 2.5px) * 1.1); stroke-linejoin: round; }
+.plabels .stn.tr { fill: #A08C84; font-weight: 500; }
 .cl { cursor: pointer; }
 .cl circle { fill: var(--accent); stroke: #fff; stroke-width: calc(var(--sw, 2.5px) * 1.2); }
 .cl .halo { fill: var(--accent); fill-opacity: 0.2; stroke: none; }
@@ -615,6 +614,13 @@ function previewMapApi() {
     ["세종", 36.56, 127.26, 1], ["대구", 35.87, 128.60, 1], ["광주", 35.16, 126.85, 1], ["울산", 35.55, 129.26, 1], ["부산", 35.17, 129.07, 1]
   ];
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // 지하철 색을 지도 바탕색과 섞어 파스텔로 (배경처럼 은은하게)
+  const soft = (c, a = 0.6) => {
+    if (!c || c[0] !== "#") return "#D9CCC5";
+    const n = parseInt(c.slice(1), 16), bg = [255, 252, 250];
+    const ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v, i) => Math.round(v * (1 - a) + bg[i] * a));
+    return `rgb(${ch.join(",")})`;
+  };
   const MAXK = 250; // 최대 확대 배율 (전국 기준 250배 ≈ 골목·건물 블록 수준)
   let svg, world, overlay, labelsG, pinsG, stG, subG, zoom, t = d3.zoomIdentity, t0 = d3.zoomIdentity, list = [], groups = [];
   let drawTimer = null, drawRaf = null;
@@ -641,13 +647,13 @@ function previewMapApi() {
     const inView = (x, y, m = 0) => x > vis.x0 - m && x < vis.x1 + m && y > vis.y0 - m && y < vis.y1 + m;
     // 수도권 지하철: 확대할수록 진하게, 더 확대하면 역 표시
     const ppu = t.k / u; // 지도 1단위 = 화면 몇 px
-    const subOp = Math.max(0, Math.min(0.75, (ppu - 2) / 2.4));
+    const subOp = Math.max(0, Math.min(0.85, (ppu - 2.5) / 3));
     subG.style.display = subOp ? "" : "none";
     subG.style.opacity = subOp;
     el.classList.toggle("zin", ppu >= 12);
-    const stVis = ppu >= 7 ? SUB.s.map(s => ({ s, x: t.applyX(s[0]), y: t.applyY(s[1]) })).filter(o => inView(o.x, o.y, 20 * u)) : [];
+    const stVis = ppu >= 14 ? SUB.s.map(s => ({ s, x: t.applyX(s[0]), y: t.applyY(s[1]) })).filter(o => inView(o.x, o.y, 20 * u)) : [];
     const r0 = (ppu >= 12 ? 2.8 : 2) * u;
-    stG.innerHTML = stVis.map(({ s, x, y }) => `<circle cx="${x}" cy="${y}" r="${s[3] ? r0 * 1.35 : r0}" style="stroke:${s[3] ? "#B9A49C" : s[4]}"/>`).join("");
+    stG.innerHTML = stVis.map(({ s, x, y }) => `<circle cx="${x}" cy="${y}" r="${s[3] ? r0 * 1.35 : r0}" style="stroke:${s[3] ? "#C9B6AE" : soft(s[4], 0.5)}"/>`).join("");
     const placed = [], showName = new Set();
     const hit = (x, y, w, h) => placed.some(b => x < b.x + b.w && b.x < x + w && y < b.y + b.h && b.y < y + h);
     // 0) 화면에서 가까운 가게끼리 묶기 (선택된 가게는 항상 따로 표시, 최대로 확대하면 묶지 않음)
@@ -703,7 +709,7 @@ function previewMapApi() {
       });
     }
     // 4) 지하철역 이름: 많이 확대했을 때만 (환승역 먼저)
-    if (ppu >= 20) {
+    if (ppu >= 26) {
       [...stVis].sort((a, b) => b.s[3] - a.s[3]).forEach(({ s, x, y }) => {
         const lx = x + 5 * u, ly = y + 4 * u, w = s[2].length * 11 * u + 4 * u, h = 15 * u;
         if (hit(lx, ly - h, w, h)) return;
@@ -749,7 +755,7 @@ function previewMapApi() {
     init() {
       $("map").innerHTML = `
         <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="맛집 위치 지도">
-          <g class="world"><g class="land">${GEO.p.map(p => `<path d="${p.d}"/>`).join("")}</g><path class="muni" d="${MUNI.d}"/><g class="land-edge">${GEO.p.map(p => `<path d="${p.d}"/>`).join("")}</g><g class="subway">${SUB.l.map(l => `<path class="case" d="${l.d}"/>`).join("")}${SUB.l.map(l => `<path class="ln" d="${l.d}" style="stroke:${l.c}"><title>${l.n}</title></path>`).join("")}</g></g>
+          <g class="world"><g class="land">${GEO.p.map(p => `<path d="${p.d}"/>`).join("")}</g><path class="muni" d="${MUNI.d}"/><g class="land-edge">${GEO.p.map(p => `<path d="${p.d}"/>`).join("")}</g><g class="subway">${SUB.l.map(l => `<path class="case" d="${l.d}"/>`).join("")}${SUB.l.map(l => `<path class="ln" d="${l.d}" style="stroke:${soft(l.c)}"><title>${l.n}</title></path>`).join("")}</g></g>
           <g class="overlay"><g class="plabels"></g><g class="stations"></g><g class="pins"></g></g>
         </svg>
         <div class="zctl">
