@@ -1205,7 +1205,7 @@ function leafletMapApi() {
   return {
     init(onFail) {
       $("map").innerHTML = "";
-      map = L.map("map", { zoomControl: true, attributionControl: false }).setView([36.4, 127.8], 7);
+      map = L.map("map", { zoomControl: true, attributionControl: false, minZoom: 6, maxBounds: [[31.5, 122.5], [39.5, 133]] }).setView([36.4, 127.8], 7);
       L.control.attribution({ prefix: false }).addTo(map);
       const tiles = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'
@@ -1239,7 +1239,7 @@ function leafletMapApi() {
       const ids = new Set(list.map(r => r.id));
       group.clearLayers();
       group.addLayers(list.map(r => { markers[r.id].setStyle(style(r)); return markers[r.id]; }));
-      if (list.length) map.flyToBounds(L.latLngBounds(list.map(r => [r.lat, r.lng])).pad(0.2), { maxZoom: 14, duration: 0.6 });
+      if (list.length) map.fitBounds(L.latLngBounds(list.map(r => [r.lat, r.lng])).pad(0.15), { maxZoom: 14, animate: true });
     },
     focus(id) {
       const r = RESTAURANTS.find(x => x.id === id);
